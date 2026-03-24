@@ -1,23 +1,48 @@
+from typing import List
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Shoe
+from app.services import strava_client, token_manager
 
 
-async def update_shoe_mileage(db: AsyncSession, gear_id: str, distance_m: float) -> None:
-    """Add distance to a shoe's total mileage."""
-    if not gear_id:
-        return
+async def sync_shoes_from_strava(db: AsyncSession) -> int:
+    """Sync all shoes from Strava athlete profile with actual total mileage."""
+    access_token = await token_manager.get_valid_access_token(db)
+    if not access_token:
+        return 0
 
-    result = await db.execute(select(Shoe).where(Shoe.strava_gear_id == gear_id))
-    shoe = result.scalar_one_or_none()
+    athlete = await strava_client.get_athlete(access_token)
+    strava_shoes = athlete.get("shoes", [])
+    synced = 0
 
-    if shoe:
-        shoe.total_distance_m += distance_m
-        await db.commit()
+    for s in strava_shoes:
+        gear_id = s["id"]
+        result = await db.execute(
+            select(Shoe).where(Shoe.strava_gear_id == gear_id)
+        )
+        shoe = result.scalar_one_or_none()
+
+        if shoe:
+            # Update existing shoe with Strava's total
+            shoe.total_distance_m = s.get("distance", 0.0)
+            shoe.name = s.get("name", shoe.name)
+        else:
+            # Create new shoe from Strava
+            shoe = Shoe(
+                name=s.get("name", "Unknown"),
+                strava_gear_id=gear_id,
+                total_distance_m=s.get("distance", 0.0),
+            )
+            db.add(shoe)
+        synced += 1
+
+    await db.commit()
+    return synced
 
 
-async def get_shoe_status(db: AsyncSession) -> list[dict]:
+async def get_shoe_status(db: AsyncSession) -> List[dict]:
     """Get status of all active shoes."""
     result = await db.execute(select(Shoe).where(Shoe.active == True))
     shoes = result.scalars().all()

@@ -121,6 +121,10 @@ async def sync_activities(db: AsyncSession = Depends(get_db)):
     from app.services.plan_matcher import match_activities_to_plan
     match_result = await match_activities_to_plan(db)
 
+    # Sync shoes from Strava (actual total mileage)
+    from app.services.shoe_tracker import sync_shoes_from_strava
+    await sync_shoes_from_strava(db)
+
     return {
         "synced": synced,
         "analyzed": analyzed,
