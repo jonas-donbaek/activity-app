@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+{% block title %}{{ activity.name }}{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h2>{{ activity.name }}</h2>
+    <p>{{ activity.start_date[:10] }} | {{ activity.sport_type }}
+    {% if activity.matched_workout_type %} | <mark>{{ activity.matched_workout_type }}</mark>{% endif %}
+    {% if activity.effort_score %} | 💪 Relative Effort: <strong>{{ activity.effort_score }}</strong>{% endif %}
+    </p>
+</hgroup>
+
+<div class="grid">
+    <article>
+        <header><strong>📊 Oversigt</strong></header>
+        <table>
+            <tr><td>📏 Distance</td><td><strong>{{ activity.distance_km }} km</strong></td></tr>
+            <tr><td>⏱️ Tid</td><td>{{ activity.moving_time_min|round(1) }} min</td></tr>
+            <tr><td>🏎️ Pace</td><td>{{ activity.pace_min_km }} min/km</td></tr>
+            <tr><td>💓 Gns. puls</td><td>{{ activity.avg_heartrate|default('N/A') }} bpm</td></tr>
+            <tr><td>💓 Max puls</td><td>{{ activity.max_heartrate|default('N/A') }} bpm</td></tr>
+            <tr><td>👟 Kadence</td><td>{{ activity.avg_cadence|default('N/A') }} spm</td></tr>
+            <tr><td>⛰️ Stigning</td><td>{{ activity.total_elevation }} m</td></tr>
+            {% if activity.pace_cv is not none %}
+            <tr><td>📈 Pace-stabilitet (CV)</td><td>{{ activity.pace_cv }}</td></tr>
+            {% endif %}
+        </table>
+    </article>
+
+    <article>
+        <header><strong>❤️ HR Zone-fordeling</strong></header>
+        {% if activity.zones %}
+        <canvas id="detailZoneChart" width="300" height="300"></canvas>
+        <table>
+            <tr><td style="color:#4CAF50">Zone 1 (Recovery)</td><td>{{ activity.zones.zone1 }}%</td></tr>
+            <tr><td style="color:#2196F3">Zone 2 (Endurance)</td><td>{{ activity.zones.zone2 }}%</td></tr>
+            <tr><td style="color:#FF9800">Zone 3 (Tempo)</td><td>{{ activity.zones.zone3 }}%</td></tr>
+            <tr><td style="color:#f44336">Zone 4 (Threshold)</td><td>{{ activity.zones.zone4 }}%</td></tr>
+            <tr><td style="color:#9C27B0">Zone 5 (VO2 Max)</td><td>{{ activity.zones.zone5 }}%</td></tr>
+        </table>
+        {% else %}
+        <p>Ingen pulsdata tilgængelig for dette løb.</p>
+        {% endif %}
+    </article>
+
+    {% if activity.pace_zones %}
+    <article>
+        <header><strong>🏎️ Pace Zones</strong></header>
+        <div style="display:flex; height:32px; border-radius:6px; overflow:hidden; margin-bottom:1rem;">
+            {% for pz in activity.pace_zones %}
+            {% if pz.pct > 0 %}
+            <div style="width:{{ pz.pct }}%; background:{{ pz.color }};" title="Z{{ pz.zone }} {{ pz.name }}: {{ pz.pct }}%"></div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        <table>
+            {% for pz in activity.pace_zones %}
+            {% if pz.pct > 0 %}
+            <tr>
+                <td style="color:{{ pz.color }}">Z{{ pz.zone }} {{ pz.name }}</td>
+                <td>{{ pz.pct }}%</td>
+                <td>{{ (pz.seconds / 60)|round(0)|int }} min</td>
+                <td style="font-size:0.85em; opacity:0.7">{{ pz.pace_range }}</td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </table>
+    </article>
+    {% endif %}
+</div>
+
+{% if activity.effort_score %}
+<article>
+    <header><strong>💪 Relative Effort: {{ activity.effort_score }}</strong></header>
+    <div style="display:flex; height:32px; border-radius:6px; overflow:hidden; margin-bottom:1rem;">
+        {% set total_s = activity.zone1_seconds + activity.zone2_seconds + activity.zone3_seconds + activity.zone4_seconds + activity.zone5_seconds %}
+        {% if total_s > 0 %}
+        {% if activity.zone1_seconds > 0 %}
+        <div style="width:{{ (activity.zone1_seconds / total_s * 100)|round(1) }}%; background:#4CAF50;" title="Z1: {{ (activity.zone1_seconds / 60)|round(0)|int }} min"></div>
+        {% endif %}
+        {% if activity.zone2_seconds > 0 %}
+        <div style="width:{{ (activity.zone2_seconds / total_s * 100)|round(1) }}%; background:#2196F3;" title="Z2: {{ (activity.zone2_seconds / 60)|round(0)|int }} min"></div>
+        {% endif %}
+        {% if activity.zone3_seconds > 0 %}
+        <div style="width:{{ (activity.zone3_seconds / total_s * 100)|round(1) }}%; background:#FF9800;" title="Z3: {{ (activity.zone3_seconds / 60)|round(0)|int }} min"></div>
+        {% endif %}
+        {% if activity.zone4_seconds > 0 %}
+        <div style="width:{{ (activity.zone4_seconds / total_s * 100)|round(1) }}%; background:#f44336;" title="Z4: {{ (activity.zone4_seconds / 60)|round(0)|int }} min"></div>
+        {% endif %}
+        {% if activity.zone5_seconds > 0 %}
+        <div style="width:{{ (activity.zone5_seconds / total_s * 100)|round(1) }}%; background:#9C27B0;" title="Z5: {{ (activity.zone5_seconds / 60)|round(0)|int }} min"></div>
+        {% endif %}
+        {% endif %}
+    </div>
+    <table>
+        <tr>
+            <td style="color:#4CAF50">Z1 Recovery</td>
+            <td>{{ (activity.zone1_seconds / 60)|round(0)|int }} min</td>
+            <td style="color:#2196F3">Z2 Endurance</td>
+            <td>{{ (activity.zone2_seconds / 60)|round(0)|int }} min</td>
+        </tr>
+        <tr>
+            <td style="color:#FF9800">Z3 Tempo</td>
+            <td>{{ (activity.zone3_seconds / 60)|round(0)|int }} min</td>
+            <td style="color:#f44336">Z4 Threshold</td>
+            <td>{{ (activity.zone4_seconds / 60)|round(0)|int }} min</td>
+        </tr>
+        <tr>
+            <td style="color:#9C27B0">Z5 VO2 Max</td>
+            <td>{{ (activity.zone5_seconds / 60)|round(0)|int }} min</td>
+            <td></td><td></td>
+        </tr>
+    </table>
+</article>
+{% endif %}
+
+{% if activity.flags %}
+<article>
+    <header><strong>🚩 Flags</strong></header>
+    {% for flag in activity.flags %}
+    <mark>{{ flag }}</mark>
+    {% endfor %}
+</article>
+{% endif %}
+
+{% if activity.coach_comment %}
+<article>
+    <header><strong>🗣️ Coach Kommentar</strong></header>
+    <blockquote>{{ activity.coach_comment }}</blockquote>
+</article>
+{% endif %}
+
+{% if activity.splits %}
+<article>
+    <header><strong>📏 Splits</strong></header>
+    <table>
+        <thead>
+            <tr><th>Km</th><th>Pace</th><th>HR</th><th>Stigning</th></tr>
+        </thead>
+        <tbody>
+        {% for split in activity.splits %}
+            <tr>
+                <td>{{ split.km }}</td>
+                <td>{{ split.pace }}</td>
+                <td>{{ split.avg_hr if split.avg_hr else '-' }}</td>
+                <td>{{ '+' if split.elevation >= 0 else '' }}{{ split.elevation }} m</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</article>
+{% endif %}
+
+{% if activity.streams and activity.streams.heartrate %}
+<article>
+    <header><strong>💓 Puls over tid</strong></header>
+    <canvas id="hrChart" height="80"></canvas>
+</article>
+{% endif %}
+
+<!-- Strava Description Copy -->
+<article>
+    <header><strong>📋 Strava Description</strong></header>
+    <pre id="stravaDesc" style="white-space: pre-wrap; background: var(--pico-card-background-color); padding: 1rem; border-radius: 4px; font-size: 0.9em">Indlæser...</pre>
+    <button onclick="copyDescription()">📋 Kopier til Strava</button>
+</article>
+
+<a href="/dashboard">&larr; Tilbage til dashboard</a>
+{% endblock %}
+
+{% block scripts %}
+<script>
+{% if activity.zones %}
+new Chart(document.getElementById('detailZoneChart'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Zone 1', 'Zone 2', 'Zone 3', 'Zone 4', 'Zone 5'],
+        datasets: [{
+            data: [
+                {{ activity.zones.zone1 or 0 }},
+                {{ activity.zones.zone2 or 0 }},
+                {{ activity.zones.zone3 or 0 }},
+                {{ activity.zones.zone4 or 0 }},
+                {{ activity.zones.zone5 or 0 }}
+            ],
+            backgroundColor: ['#4CAF50', '#2196F3', '#FF9800', '#f44336', '#9C27B0']
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { position: 'bottom' } }
+    }
+});
+{% endif %}
+
+// Fetch Strava description
+fetch('/api/activities/{{ activity.id }}/description')
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('stravaDesc').textContent = data.description || 'Kunne ikke generere description';
+    })
+    .catch(() => {
+        document.getElementById('stravaDesc').textContent = 'Fejl ved indlæsning';
+    });
+
+function copyDescription() {
+    const text = document.getElementById('stravaDesc').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = event.target;
+        btn.textContent = '✅ Kopieret!';
+        setTimeout(() => btn.textContent = '📋 Kopier til Strava', 2000);
+    });
+}
+
+{% if activity.streams and activity.streams.heartrate %}
+// HR over time chart
+const hrData = {{ activity.streams.heartrate.data | tojson }};
+const timeData = {{ activity.streams.time.data | tojson }};
+const labels = timeData.map(t => Math.round(t / 60) + ' min');
+
+// Downsample for performance (take every 30th point)
+const step = Math.max(1, Math.floor(hrData.length / 500));
+const sampledHR = hrData.filter((_, i) => i % step === 0);
+const sampledLabels = labels.filter((_, i) => i % step === 0);
+
+new Chart(document.getElementById('hrChart'), {
+    type: 'line',
+    data: {
+        labels: sampledLabels,
+        datasets: [{
+            label: 'Puls (bpm)',
+            data: sampledHR,
+            borderColor: '#f44336',
+            backgroundColor: 'rgba(244, 67, 54, 0.1)',
+            fill: true,
+            pointRadius: 0,
+            borderWidth: 1.5
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display: false },
+            annotation: {
+                annotations: {
+                    zone2Line: {
+                        type: 'line',
+                        yMin: 153, yMax: 153,
+                        borderColor: '#2196F3',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        label: {
+                            content: 'Zone 2 loft (153)',
+                            enabled: true,
+                            position: 'start'
+                        }
+                    }
+                }
+            }
+        },
+        scales: {
+            y: { min: 80, max: 200, title: { display: true, text: 'BPM' } },
+            x: { display: true, title: { display: true, text: 'Tid' },
+                 ticks: { maxTicksLimit: 15 } }
+        }
+    }
+});
+{% endif %}
+</script>
+{% endblock %}

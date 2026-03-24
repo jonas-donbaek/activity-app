@@ -1,0 +1,65 @@
+/* Strava Running Coach - Custom styles */
+
+:root {
+    --primary: #FC4C02; /* Strava orange */
+    --primary-hover: #E34402;
+}
+
+[data-theme="light"] {
+    --pico-primary: #FC4C02;
+    --pico-primary-hover: #E34402;
+}
+
+/* Zone colors */
+.zone1 { color: #4CAF50; }
+.zone2 { color: #2196F3; }
+.zone3 { color: #FF9800; }
+.zone4 { color: #f44336; }
+.zone5 { color: #9C27B0; }
+
+/* Flag badges */
+mark {
+    margin-right: 0.5rem;
+    font-size: 0.85em;
+}
+
+/* Coach comment styling */
+blockquote {
+    border-left-color: var(--primary);
+    font-style: normal;
+}
+
+/* Footer */
+footer {
+    text-align: center;
+    padding: 1rem 0;
+    opacity: 0.7;
+}
+
+/* Progress bars in shoe tracking */
+progress {
+    width: 100%;
+}
+
+progress[value]::-webkit-progress-bar {
+    border-radius: 4px;
+}
+
+/* Responsive chart containers */
+canvas {
+    max-width: 100%;
+}
+
+/* Current week highlight in plan table */
+tr[style*="background-color"] td {
+    font-weight: 600;
+}
+
+/* Alert styling */
+[role="alert"] {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 4px;
+    padding: 0.75rem;
+    color: #856404;
+}

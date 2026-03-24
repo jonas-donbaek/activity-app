@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Dagens Workout{% endblock %}
+
+{% block content %}
+<h2>📅 Dagens Workout</h2>
+
+<!-- Recovery Status -->
+{% if recovery %}
+<article style="border-left: 4px solid {{ recovery.color }}">
+    <header>{{ recovery.emoji }} {{ recovery.status }}</header>
+    <p>{{ recovery.message }}</p>
+    <p><strong>Anbefaling:</strong> {{ recovery.recommendation }}</p>
+    <small>Load sidste 7 dage: {{ recovery.load_7d_km }} km | Effort: {{ recovery.load_7d_effort }}</small>
+</article>
+{% endif %}
+
+<!-- Today's Workout -->
+{% if today_workout %}
+<article>
+    <header>
+        <strong>{{ today_workout.title }}</strong>
+        {% if today_workout.completed %}
+        <mark style="background: #4CAF50; color: white">✅ Gennemført</mark>
+        {% endif %}
+    </header>
+
+    {% if today_workout.workout_type == "rest" %}
+    <p style="font-size: 1.2em">😴 {{ today_workout.description }}</p>
+    {% else %}
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem">
+        <div>
+            <small>Distance</small>
+            <p style="font-size: 1.5em; margin: 0"><strong>{{ today_workout.target_distance_km }} km</strong></p>
+        </div>
+        <div>
+            <small>Pace-mål</small>
+            <p style="font-size: 1.5em; margin: 0"><strong>{{ today_workout.target_pace_range }}/km</strong></p>
+        </div>
+        <div>
+            <small>HR Zone</small>
+            <p style="font-size: 1.5em; margin: 0"><strong>Zone {{ today_workout.target_hr_zone or "-" }}</strong></p>
+        </div>
+    </div>
+
+    <blockquote>
+        {{ today_workout.description | replace('\n', '<br>') | safe }}
+    </blockquote>
+    {% endif %}
+</article>
+{% else %}
+<article>
+    <p>Ingen planlagt workout i dag. Har du genereret en træningsplan?</p>
+    <button onclick="generatePlan(this)">Generer Træningsplan</button>
+</article>
+{% endif %}
+
+<!-- Week Overview -->
+{% if week_workouts %}
+<h3>📆 Ugens Plan</h3>
+<div class="overflow-auto">
+    <table>
+        <thead>
+            <tr>
+                <th>Dag</th>
+                <th>Workout</th>
+                <th>Distance</th>
+                <th>Pace</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% set day_names = ["Man", "Tir", "Ons", "Tor", "Fre", "Lør", "Søn"] %}
+            {% for wo in week_workouts %}
+            <tr {% if wo.workout_date == today_date %}style="background-color: rgba(252, 76, 2, 0.1); font-weight: 600"{% endif %}>
+                <td>{{ day_names[wo.day_of_week] }}</td>
+                <td>{{ wo.title }}</td>
+                <td>{% if wo.target_distance_km > 0 %}{{ wo.target_distance_km }} km{% else %}-{% endif %}</td>
+                <td>{{ wo.target_pace_range if wo.target_pace_range else "-" }}</td>
+                <td>
+                    {% if wo.completed %}✅
+                    {% elif wo.workout_date < today_date and wo.workout_type != "rest" %}❌
+                    {% elif wo.workout_date == today_date %}👈 I dag
+                    {% else %}⏳
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<a href="/dashboard">&larr; Tilbage til dashboard</a>
+{% endblock %}

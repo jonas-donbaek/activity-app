@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+{% if not authenticated %}
+<article>
+    <header>Velkommen, Jonas! 🏃</header>
+    <p>Forbind din Strava-konto for at komme i gang med din personlige løbecoach.</p>
+    <a href="/auth/strava" role="button">Forbind med Strava</a>
+</article>
+{% else %}
+
+<h2>Hej {{ athlete_name }}! 👋</h2>
+<p>{{ days_to_race }} dage til {{ race_name }}. Lad os holde dig på sporet!</p>
+
+<!-- Recovery + Today's Workout -->
+<div class="grid">
+    <!-- Recovery Status -->
+    {% if recovery %}
+    <article style="border-left: 4px solid {{ recovery.color }}">
+        <header><strong>{{ recovery.emoji }} {{ recovery.status }}</strong></header>
+        <p>{{ recovery.message }}</p>
+        <p><small>{{ recovery.recommendation }}</small></p>
+    </article>
+    {% endif %}
+
+    <!-- Today's Workout -->
+    <article>
+        <header><strong>📅 Dagens Workout</strong></header>
+        {% if today_workout %}
+            {% if today_workout.workout_type == "rest" %}
+            <p style="font-size: 1.1em">😴 {{ today_workout.title }}</p>
+            <p><small>{{ today_workout.description }}</small></p>
+            {% else %}
+            <h3>{{ today_workout.title }}</h3>
+            <p>
+                📏 <strong>{{ today_workout.target_distance_km }} km</strong> |
+                🏎️ {{ today_workout.target_pace_range }}/km |
+                ❤️ Zone {{ today_workout.target_hr_zone or "-" }}
+                {% if today_workout.completed %}<mark style="background: #4CAF50; color: white">✅</mark>{% endif %}
+            </p>
+            {% endif %}
+        <footer><a href="/dashboard/today">Se detaljer &rarr;</a></footer>
+        {% else %}
+        <p>Ingen planlagt workout i dag.</p>
+        <a href="/dashboard/today">Se ugens plan &rarr;</a>
+        {% endif %}
+    </article>
+</div>
+
+<div class="grid">
+    <!-- Latest Activity Card -->
+    <article>
+        <header><strong>🏃 Seneste Løb</strong></header>
+        {% if latest_activity %}
+        <h3>{{ latest_activity.name }}</h3>
+        <p>
+            📏 {{ latest_activity.distance_km }} km |
+            ⏱️ {{ latest_activity.moving_time_min|round(0)|int }} min |
+            💓 {{ latest_activity.avg_heartrate|default('N/A') }} bpm |
+            🏎️ {{ latest_activity.pace_min_km }} min/km
+        </p>
+        {% if latest_activity.zones %}
+        <canvas id="zoneChart" width="200" height="200"></canvas>
+        {% endif %}
+        {% if latest_activity.coach_comment %}
+        <blockquote>{{ latest_activity.coach_comment }}</blockquote>
+        {% endif %}
+        {% if latest_activity.flags %}
+        {% for flag in latest_activity.flags %}
+        <mark>{{ flag }}</mark>
+        {% endfor %}
+        {% endif %}
+        <footer>
+            <a href="/dashboard/activity/{{ latest_activity.id }}">Se detaljer &rarr;</a>
+        </footer>
+        {% else %}
+        <p>Ingen aktiviteter endnu. Klik "Sync" for at hente fra Strava.</p>
+        {% endif %}
+    </article>
+
+    <!-- This Week Card -->
+    <article>
+        <header><strong>📊 Denne Uge</strong></header>
+        {% if current_week %}
+        <p>
+            📏 <strong>{{ current_week.total_km }} km</strong>
+            {% if current_week_plan %}
+            / {{ current_week_plan.total_target_km }} km mål
+            {% endif %}
+        </p>
+        <p>🏃 {{ current_week.num_runs }} løb | ⏱️ {{ current_week.total_time_min|round(0)|int }} min</p>
+
+        {% if current_week.injury_warning %}
+        <p role="alert">⚠️ Træningsmængde steget {{ current_week.increase_pct }}% fra sidste uge! Hold igen for at undgå skader.</p>
+        {% elif current_week.increase_pct is not none %}
+        <p>📈 {{ current_week.increase_pct }}% ændring fra sidste uge</p>
+        {% endif %}
+
+        {% if current_week.zone_distribution %}
+        <canvas id="weekZoneChart" width="200" height="150"></canvas>
+        {% endif %}
+        {% else %}
+        <p>Ingen data for denne uge endnu.</p>
+        {% endif %}
+    </article>
+</div>
+
+<div class="grid">
+    <!-- Training Plan Summary -->
+    <article>
+        <header><strong>📋 Træningsplan - Uge {{ current_plan_week.week_number if current_plan_week else '?' }}</strong></header>
+        {% if current_plan_week %}
+        <p><mark>{{ current_plan_week.phase|upper }}</mark>
+            {% if current_plan_week.completed_runs > 0 %}
+            | {{ current_plan_week.completed_runs }} løb gennemført ({{ current_plan_week.completed_km }} km)
+            {% endif %}
+        </p>
+        <ul>
+            <li>🏃‍♂️ Long Run: <strong>{{ current_plan_week.long_run_km }} km</strong> (Zone 2!)</li>
+            <li>🔥 Interval: {{ current_plan_week.interval_description }}</li>
+            <li>😌 Rolige ture: {{ current_plan_week.easy_runs_km }} km total</li>
+            <li>📊 Ugens mål: <strong>{{ current_plan_week.total_target_km }} km</strong></li>
+        </ul>
+        {% if current_plan_week.total_target_km > 0 %}
+        <progress value="{{ current_plan_week.completed_km }}" max="{{ current_plan_week.total_target_km }}"></progress>
+        <small>{{ current_plan_week.completed_km }} / {{ current_plan_week.total_target_km }} km</small>
+        {% endif %}
+        <footer><a href="/dashboard/plan">Se fuld plan &rarr;</a></footer>
+        {% else %}
+        <p>Ingen træningsplan genereret endnu.</p>
+        <button onclick="generatePlan(this)">Generer Træningsplan</button>
+        {% endif %}
+    </article>
+
+    <!-- Race Prediction -->
+    {% if race_prediction %}
+    <article>
+        <header><strong>🏁 Halvmaraton Forudsigelse</strong></header>
+        <h3 style="text-align:center; margin:0.5rem 0">{{ race_prediction.predicted_time }}</h3>
+        <p style="text-align:center; margin:0">
+            Pace: {{ race_prediction.predicted_pace }}<br>
+            <small style="opacity:0.7">Interval: {{ race_prediction.range_fast }} - {{ race_prediction.range_slow }}</small>
+        </p>
+        {% if race_prediction.reference_efforts %}
+        <details>
+            <summary>Baseret på</summary>
+            <table>
+            {% for ref in race_prediction.reference_efforts %}
+                <tr>
+                    <td>{{ ref.distance }}</td>
+                    <td>{{ ref.pace }}</td>
+                    <td>&rarr; {{ ref.predicted_hm }}</td>
+                </tr>
+            {% endfor %}
+            </table>
+            <small>Ugentlig km: {{ race_prediction.weekly_km }} km | Riegel-formel</small>
+        </details>
+        {% endif %}
+    </article>
+    {% endif %}
+
+    <!-- Shoe Status -->
+    <article>
+        <header><strong>👟 Sko Status</strong></header>
+        {% if shoes %}
+        {% for shoe in shoes %}
+        <p>{{ shoe.message }}</p>
+        <progress value="{{ shoe.pct_used }}" max="100"></progress>
+        <small>{{ shoe.total_km }} km / {{ shoe.retire_km|int }} km</small>
+        {% endfor %}
+        {% else %}
+        <p>Ingen sko registreret.</p>
+        <small>Tilføj dine Brooks Ghost Max 2 via API: POST /api/shoes?name=Brooks+Ghost+Max+2</small>
+        {% endif %}
+    </article>
+</div>
+
+<!-- Weekly Mileage Chart -->
+{% if weekly_summaries|length > 0 %}
+<article>
+    <header><strong>📊 Ugentlig Distance (år til dato)</strong></header>
+    <canvas id="weeklyChart" height="100"></canvas>
+</article>
+{% endif %}
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+{% if authenticated and latest_activity and latest_activity.zones %}
+new Chart(document.getElementById('zoneChart'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Zone 1', 'Zone 2', 'Zone 3', 'Zone 4', 'Zone 5'],
+        datasets: [{
+            data: [
+                {{ latest_activity.zones.zone1 or 0 }},
+                {{ latest_activity.zones.zone2 or 0 }},
+                {{ latest_activity.zones.zone3 or 0 }},
+                {{ latest_activity.zones.zone4 or 0 }},
+                {{ latest_activity.zones.zone5 or 0 }}
+            ],
+            backgroundColor: ['#4CAF50', '#2196F3', '#FF9800', '#f44336', '#9C27B0']
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } }
+    }
+});
+{% endif %}
+
+{% if authenticated and current_week and current_week.zone_distribution %}
+new Chart(document.getElementById('weekZoneChart'), {
+    type: 'bar',
+    data: {
+        labels: ['Z1', 'Z2', 'Z3', 'Z4', 'Z5'],
+        datasets: [{
+            label: 'Tid i zone (%)',
+            data: [
+                {{ current_week.zone_distribution.zone1 or 0 }},
+                {{ current_week.zone_distribution.zone2 or 0 }},
+                {{ current_week.zone_distribution.zone3 or 0 }},
+                {{ current_week.zone_distribution.zone4 or 0 }},
+                {{ current_week.zone_distribution.zone5 or 0 }}
+            ],
+            backgroundColor: ['#4CAF50', '#2196F3', '#FF9800', '#f44336', '#9C27B0']
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, max: 100 } }
+    }
+});
+{% endif %}
+
+{% if authenticated and weekly_summaries|length > 0 %}
+new Chart(document.getElementById('weeklyChart'), {
+    type: 'bar',
+    data: {
+        labels: [{% for w in weekly_summaries %}'Uge {{ w.week_iso }}'{% if not loop.last %},{% endif %}{% endfor %}],
+        datasets: [{
+            label: 'km',
+            data: [{% for w in weekly_summaries %}{{ w.total_km }}{% if not loop.last %},{% endif %}{% endfor %}],
+            backgroundColor: '#FC4C02',
+            borderRadius: 4
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, title: { display: true, text: 'km' } } }
+    }
+});
+{% endif %}
+</script>
+{% endblock %}

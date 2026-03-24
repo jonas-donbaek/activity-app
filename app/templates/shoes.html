@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Sko{% endblock %}
+
+{% block content %}
+<h2>👟 Sko Tracking</h2>
+
+{% if shoes %}
+{% for shoe in shoes %}
+<article>
+    <header><strong>{{ shoe.name }}</strong></header>
+    <p>{{ shoe.message }}</p>
+    <progress value="{{ shoe.pct_used }}" max="100"></progress>
+    <p><small>{{ shoe.total_km }} km af {{ shoe.retire_km|int }} km</small></p>
+</article>
+{% endfor %}
+{% else %}
+<article>
+    <p>Ingen sko registreret endnu.</p>
+    <p>Tilføj dine sko via terminalen:</p>
+    <pre><code>curl -X POST "http://localhost:8000/api/shoes?name=Brooks+Ghost+Max+2"</code></pre>
+</article>
+{% endif %}
+
+<a href="/dashboard">&larr; Tilbage til dashboard</a>
+{% endblock %}

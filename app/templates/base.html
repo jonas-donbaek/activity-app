@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="da" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Running Coach{% endblock %} - Strava Coach</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav class="container">
+        <ul>
+            <li><strong>🏃 Strava Running Coach</strong></li>
+        </ul>
+        <ul>
+            <li><a href="/dashboard">Dashboard</a></li>
+            <li><a href="/dashboard/today">Dagens Workout</a></li>
+            <li><a href="/dashboard/plan">Træningsplan</a></li>
+            <li><a href="/dashboard/shoes">Sko</a></li>
+            {% if authenticated %}
+            <li><a href="#" onclick="syncActivities()">🔄 Sync</a></li>
+            {% else %}
+            <li><a href="/auth/strava" role="button">Forbind Strava</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="container">
+        <small>
+            🎯 Mål: {{ race_name }} - {{ race_date }} |
+            ⏱️ {{ days_to_race }} dage til løb
+        </small>
+    </footer>
+
+    <script>
+    async function generatePlan(btn) {
+        btn.setAttribute('aria-busy', 'true');
+        try {
+            const resp = await fetch('/api/plan/generate', { method: 'POST' });
+            const data = await resp.json();
+            alert(`Træningsplan genereret: ${data.weeks} uger`);
+            location.reload();
+        } catch (e) {
+            alert('Fejl: ' + e.message);
+        } finally {
+            btn.removeAttribute('aria-busy');
+        }
+    }
+
+    async function syncActivities() {
+        const btn = event.target;
+        btn.setAttribute('aria-busy', 'true');
+        try {
+            const resp = await fetch('/api/activities/sync', { method: 'POST' });
+            const data = await resp.json();
+            if (data.synced > 0) {
+                alert(`Synkroniseret ${data.synced} nye aktiviteter (${data.analyzed} analyseret)`);
+                location.reload();
+            } else {
+                alert('Ingen nye aktiviteter at synkronisere');
+            }
+        } catch (e) {
+            alert('Fejl ved synkronisering: ' + e.message);
+        } finally {
+            btn.removeAttribute('aria-busy');
+        }
+    }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

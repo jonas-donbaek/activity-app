@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Træningsplan{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h2>📋 Træningsplan</h2>
+    <p>{{ race_name }} - {{ race_date }} ({{ days_to_race }} dage)</p>
+</hgroup>
+
+{% if not plan_weeks %}
+<article>
+    <p>Ingen træningsplan genereret endnu.</p>
+    <button onclick="generatePlan(this)">Generer Træningsplan</button>
+</article>
+{% else %}
+
+<table role="grid">
+    <thead>
+        <tr>
+            <th>Uge</th>
+            <th>Periode</th>
+            <th>Fase</th>
+            <th>Long Run</th>
+            <th>Interval</th>
+            <th>Rolige ture</th>
+            <th>Mål (km)</th>
+            <th>Gennemført</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for week in plan_weeks %}
+        <tr {% if week.is_current %}style="background-color: rgba(33, 150, 243, 0.1); font-weight: bold;"{% endif %}>
+            <td>{{ week.week_number }}{% if week.is_current %} 👈{% endif %}</td>
+            <td>{{ week.start_date }} - {{ week.end_date }}</td>
+            <td>
+                {% if week.phase == 'base' %}🏗️ Base
+                {% elif week.phase == 'build' %}📈 Build
+                {% elif week.phase == 'peak' %}🏔️ Peak
+                {% elif week.phase == 'taper' %}🧘 Taper
+                {% endif %}
+            </td>
+            <td>{{ week.long_run_km }} km</td>
+            <td>{{ week.interval_description }}</td>
+            <td>{{ week.easy_runs_km }} km</td>
+            <td>{{ week.total_target_km }}</td>
+            <td>
+                {% if week.completed_km > 0 %}
+                {{ week.completed_km }} km ({{ week.completed_runs }} løb)
+                {% else %}
+                -
+                {% endif %}
+            </td>
+            <td>
+                {% set pct = (week.completed_km / week.total_target_km * 100) if week.total_target_km > 0 else 0 %}
+                {% if pct >= 90 %}✅
+                {% elif pct >= 50 %}🔶
+                {% elif week.is_past %}❌
+                {% else %}⏳
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<article>
+    <header><strong>💡 Husk</strong></header>
+    <ul>
+        <li><strong>Long Run</strong>: ALTID i Zone 2 (under 141 bpm). Kan du føre en samtale? Så er tempoet rigtigt.</li>
+        <li><strong>Interval</strong>: Giv den gas i Zone 4/5, men sørg for ordentlig opvarmning og nedkøling.</li>
+        <li><strong>Rolige ture</strong>: Zone 1-2. Disse er restitution - det er OK at gå langsomt!</li>
+        <li><strong>Taper</strong>: De sidste 2 uger sænker vi mængden, men holder lidt fart. Stol på træningen!</li>
+    </ul>
+</article>
+{% endif %}
+
+<a href="/dashboard">&larr; Tilbage til dashboard</a>
+{% endblock %}
